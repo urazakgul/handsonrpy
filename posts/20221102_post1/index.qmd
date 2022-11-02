@@ -150,7 +150,7 @@ theme(
 scale_fill_gradient(low = "orange", high = "red") +
 scale_y_continuous(labels = comma) +
 labs(
-    title = "What Are the Best and Worst Days of the Week for Returns for the BIST100?"
+    title = "What Are the Best and Worst Days of the Week for Returns for BIST100?"
 )
 
 ```
@@ -267,7 +267,7 @@ bplt = sns.barplot(
     palette = 'rocket'
 )
 bplt.set_title(
-    label = 'What Are the Best and Worst Days of the Week for Returns for the BIST100?',
+    label = 'What Are the Best and Worst Days of the Week for Returns for BIST100?',
     fontsize = 15
 )
 bplt.set_xlabel(xlabel = '')
