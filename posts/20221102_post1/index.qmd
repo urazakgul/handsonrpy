@@ -1,0 +1,303 @@
+---
+title: "What Are the Best and Worst Days of the Week for Returns?"
+description: "Determine the best and worst days for returns for BIST100"
+author: "Uraz Akgül"
+date: "11/02/2022"
+categories: [Finance]
+image: "img.png"
+execute:
+  warning: false
+---
+
+Do stock returns differ depending on the day of the week? Let's use BIST100 returns to try to determine whether there is a difference.
+
+The data you can access by downloading the *post1.xlsx* file from [here](https://github.com/urazakgul/handsonrpy/tree/main/data) is from Reuters.
+
+# R
+
+```{r}
+#| echo: true
+
+library(readxl)
+library(lubridate)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(scales)
+library(ggrepel)
+
+```
+
+```{r}
+#| echo: true
+
+bist100 <- read_excel("data.xlsx")
+bist100$DATE <- ymd(bist100$DATE)
+
+#head(bist100)
+
+```
+
+```{r}
+#| echo: false
+
+knitr::kable(head(bist100))
+
+```
+
+How to calculate rates of return:
+
+```{r}
+
+bist100 <- bist100 %>%
+mutate(
+    DAY = weekdays(DATE)
+)
+
+#head(bist100)
+
+```
+
+```{r}
+#| echo: false
+
+knitr::kable(head(bist100))
+
+```
+
+$$
+r_i = \frac{P_{t+1}-P_t}{P_t} = \frac{P_{t+1}}{P_t} - 1
+$$
+
+$$
+r_i = Return\ on\ a\ stock\ i
+$$
+
+$$
+P_t = Price\ of\ the\ stock\ at\ time\ t
+$$
+
+$$
+P_{t+1} = Price\ of\ the\ stock\ at\ time\ t+1
+$$
+
+```{r}
+
+bist100 <- bist100 %>%
+mutate(
+    RETURN = lag(lead(CLOSE) / CLOSE - 1)
+) %>%
+na.omit()
+
+#head(bist100)
+
+```
+
+```{r}
+#| echo: false
+
+knitr::kable(head(bist100))
+
+```
+
+The mean and standard deviation of returns based on weekdays:
+
+```{r}
+
+result <- bist100 %>%
+group_by(DAY) %>%
+summarise(
+    r_mean = mean(RETURN),
+    r_sd = sd(RETURN)
+) %>%
+ungroup() %>%
+mutate(
+    DAY = factor(
+        DAY,
+        levels = c(
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday"
+        )
+    )
+) %>%
+arrange(DAY)
+
+#result
+
+```
+
+```{r}
+#| echo: false
+
+knitr::kable(result)
+
+```
+
+Barplot (Average Returns):
+
+```{r}
+
+ggplot(result, aes(x = DAY, y = r_mean, fill = r_mean)) +
+geom_col() +
+theme_fivethirtyeight() +
+theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = .5, size = 10)
+) +
+scale_fill_gradient(low = "orange", high = "red") +
+scale_y_continuous(labels = comma) +
+labs(
+    title = "What Are the Best and Worst Days of the Week for Returns for the BIST100?"
+)
+
+```
+
+Scatterplot (Average Returns vs Standard Deviations):
+
+```{r}
+
+ggplot(result, aes(x = r_mean, y = r_sd)) +
+geom_point(size = 5, alpha = .5) +
+geom_text_repel(aes(label = DAY)) +
+theme_fivethirtyeight() +
+theme(
+    axis.title = element_text()
+) +
+scale_y_continuous(labels = comma) +
+scale_x_continuous(labels = comma) +
+labs(
+    x = "Average",
+    y = "Standard Deviation"
+)
+
+```
+
+# Python
+
+```{python}
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+plt.style.use('fivethirtyeight')
+
+```
+
+```{python}
+
+bist100 = pd.read_excel("data.xlsx")
+bist100.head()
+
+```
+
+How to calculate rates of return:
+
+```{python}
+
+bist100['DAY'] = bist100['DATE'].dt.day_name()
+bist100.head()
+
+```
+
+$$
+r_i = \frac{P_{t+1}-P_t}{P_t} = \frac{P_{t+1}}{P_t} - 1
+$$
+
+$$
+r_i = Return\ on\ a\ stock\ i
+$$
+
+$$
+P_t = Price\ of\ the\ stock\ at\ time\ t
+$$
+
+$$
+P_{t+1} = Price\ of\ the\ stock\ at\ time\ t+1
+$$
+
+```{python}
+
+bist100['RETURN'] = bist100['CLOSE'].pct_change()
+bist100 = bist100.dropna()
+bist100.head()
+
+```
+
+The mean and standard deviation of returns based on weekdays:
+
+```{python}
+
+r_mean = bist100.groupby('DAY')['RETURN'].mean()
+r_std = bist100.groupby('DAY')['RETURN'].std()
+
+result = pd.DataFrame()
+result['r_mean'] = r_mean
+result['r_std'] = r_std
+
+result.reset_index(inplace = True)
+
+result['DAY'] = result['DAY'].astype("category")
+
+day_list = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday'
+]
+
+result['DAY'] = result['DAY'].cat.reorder_categories(day_list)
+
+result['DAY']
+
+```
+
+Barplot (Average Returns):
+
+```{python}
+
+fig = plt.figure(figsize = (10, 7))
+bplt = sns.barplot(
+    x = 'DAY',
+    y = 'r_mean',
+    data = result,
+    palette = 'rocket'
+)
+bplt.set_title(
+    label = 'What Are the Best and Worst Days of the Week for Returns for the BIST100?',
+    fontsize = 15
+)
+bplt.set_xlabel(xlabel = '')
+bplt.set_ylabel(ylabel = '')
+plt.show()
+
+```
+
+Scatterplot (Average Returns vs Standard Deviations):
+
+```{python}
+
+day = result['DAY']
+r_mean_x = result['r_mean']
+r_std_y = result['r_std']
+
+fig = plt.figure(figsize = (10, 7))
+splt = sns.scatterplot(
+    x = 'r_mean',
+    y = 'r_std',
+    data = result,
+    s = 150,
+    alpha = .5
+)
+for i, day in enumerate (day):
+    plt.annotate(
+        day, (r_mean_x[i], r_std_y[i])
+    )
+splt.set_xlabel(xlabel = 'Average', size = 8)
+splt.set_ylabel(ylabel = 'Standard Deviation', size = 8)
+plt.show()
+
+```
