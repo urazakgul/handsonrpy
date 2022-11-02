@@ -11,7 +11,7 @@ execute:
 
 Do stock returns differ depending on the day of the week? Let's use BIST100 returns to try to determine whether there is a difference.
 
-The data you can access by downloading the *post1.xlsx* file from [here](https://github.com/urazakgul/handsonrpy/tree/main/data) is from Reuters.
+The data you can access by downloading the *post1.xlsx* file from [here](https://github.com/urazakgul/handsonrpy/tree/main/posts/data) is from Reuters.
 
 # R
 
