@@ -1,9 +1,9 @@
 ---
 title: "What Are the Best and Worst Days of the Week for Returns?"
-description: "Determine the best and worst days for returns for BIST100"
+description: "Determine the best and worst days for returns for BIST100."
 author: "Uraz Akgül"
 date: "11/02/2022"
-categories: [Finance]
+categories: [Finance,English]
 image: "img.png"
 execute:
   warning: false
