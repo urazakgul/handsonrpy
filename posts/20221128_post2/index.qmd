@@ -1,0 +1,302 @@
+---
+title: "Let's Play a Game of Portfolio Selection"
+description: "Build your best portfolio."
+author: "Uraz Akgül"
+date: "11/28/2022"
+categories: [Finance,English]
+image: "img.png"
+execute:
+  warning: false
+---
+
+The following two goals are what I try to accomplish in the portfolio selection game series.
+
+* Coding as in every post.
+
+* Creating portfolio selection strategies through brainstorming.
+
+The portfolios that we will use are as follows:
+
+* Picking stocks at random
+
+* Annualized Return-Risk ratio
+
+* BIST100 or Borsa Istanbul 100 Index (Benchmark)
+
+[BIST50 stocks](https://www.kap.org.tr/en/Endeksler) will be used and the data you can access by downloading the *post2.xlsx* file from [here](https://github.com/urazakgul/handsonrpy/tree/main/posts/data) is from Reuters.
+
+# R
+
+```{r}
+
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+library(ggthemes)
+
+```
+
+```{r}
+
+bist50stocks <- read_excel("data.xlsx")
+bist50stocks$DATE <- as.Date(bist50stocks$DATE)
+
+bist50stocks_20192021 <- bist50stocks %>%
+filter(DATE < as.Date("2022-01-01")) %>%
+mutate_at(
+    vars(-DATE), function(x) lag(lead(x)/x-1)
+) %>%
+na.omit()
+
+bist50stocks_2022 <- bist50stocks %>%
+filter(DATE >= as.Date("2022-01-01")) %>%
+mutate_at(
+    vars(-DATE), function(x) lag(lead(x)/x-1)
+) %>%
+na.omit()
+
+```
+
+* Random
+
+```{r}
+
+set.seed(34)
+
+rnd_stocks <- sample(
+    x = names(bist50stocks_20192021)[-c(1,ncol(bist50stocks_20192021))],
+    size = 8,
+    replace = FALSE
+)
+
+sort(rnd_stocks)
+
+```
+
+* Annualized Return-Risk Ratio
+
+```{r}
+
+rr_stocks <- bist50stocks_20192021 %>%
+select(-BIST100) %>%
+pivot_longer(!DATE, names_to = "Var", values_to = "Val") %>%
+group_by(Var) %>%
+summarise(
+    "Return" = mean(Val) * 252,
+    "Risk" = sd(Val) * sqrt(252)
+) %>%
+ungroup() %>%
+mutate(
+    "Ratio" = Return / Risk
+) %>%
+arrange(desc(Ratio)) %>%
+slice(1:8) %>%
+pull(Var)
+
+sort(rr_stocks)
+
+```
+
+* Which portfolio has the best returns?
+
+```{r}
+
+df1 <- bist50stocks_2022 %>%
+select(DATE,rnd_stocks) %>%
+mutate(
+    "Return_Random" = 1 + rowMeans(.[,-1])
+) %>%
+select(DATE,Return_Random)
+
+df2 <- bist50stocks_2022 %>%
+select(DATE,rr_stocks) %>%
+mutate(
+    "Return_RR_Ratio" = 1 + rowMeans(.[,-1])
+) %>%
+select(DATE,Return_RR_Ratio)
+
+df3 <- bist50stocks_2022 %>%
+select(DATE,BIST100) %>%
+rename("Return_Benchmark" = 2) %>%
+mutate(
+    Return_Benchmark = 1 + Return_Benchmark
+)
+
+df_final <- df1 %>%
+left_join(df2, by = "DATE") %>%
+left_join(df3, by = "DATE") %>%
+mutate(
+    "PL_Random" = NA,
+    "PL_RR_Ratio" = NA,
+    "PL_Benchmark" = NA
+)
+
+for(i in 1:nrow(df_final)){
+
+    for(j in 1:3){
+
+        if(i == 1){
+            df_final[i,(j+4)] <- 100*df_final[i,(j+1)]
+        } else {
+            df_final[i,(j+4)] <- df_final[(i-1),(j+4)] * df_final[i,(j+1)]
+        }
+
+    }
+
+}
+
+```
+
+```{r}
+
+df_final %>%
+select(DATE,PL_Random,PL_RR_Ratio,PL_Benchmark) %>%
+pivot_longer(!DATE, names_to = "Var", values_to = "Val") %>%
+ggplot(aes(x = DATE, y = Val, group = Var, color = Var)) +
+geom_line(size = 1) +
+theme_fivethirtyeight() +
+theme(
+    legend.title = element_blank(),
+    legend.position = "top"
+) +
+scale_color_manual(values = c("red","blue","orange")) +
+scale_x_date(date_labels = "%Y-%m", date_breaks = "1 month")
+
+```
+
+# Python
+
+```{python}
+
+import numpy as np
+import pandas as pd
+pd.options.mode.chained_assignment = None
+import datetime as dt
+import random
+import seaborn as sns
+import matplotlib.pyplot as plt
+plt.style.use('fivethirtyeight')
+
+```
+
+```{python}
+
+bist50stocks = pd.read_excel('data.xlsx')
+bist50stocks_20192021 = bist50stocks[bist50stocks['DATE'] < dt.datetime(2022,1,1)]
+bist50stocks_20192021 = bist50stocks_20192021.apply(
+    lambda x: (x.shift(-1) / x - 1).shift(1) if x.name not in ['DATE'] else x
+)
+bist50stocks_20192021 = bist50stocks_20192021.dropna(axis=0, how='any')
+
+bist50stocks_2022 = bist50stocks[bist50stocks['DATE'] >= dt.datetime(2022,1,1)]
+bist50stocks_2022 = bist50stocks_2022.apply(
+    lambda x: (x.shift(-1) / x - 1).shift(1) if x.name not in ['DATE'] else x
+)
+bist50stocks_2022 = bist50stocks_2022.dropna(axis=0, how='any')
+
+```
+
+* Random
+
+```{python}
+
+random.seed(34)
+
+rem = {'DATE', 'BIST100'}
+rnd_list = [
+    elem for elem in list(bist50stocks_20192021.columns) if elem not in rem
+]
+rnd_stocks = random.sample(rnd_list,8)
+sorted(rnd_stocks)
+
+```
+
+* Annualized Return-Risk Ratio
+
+```{python}
+
+rr_stocks = bist50stocks_20192021.drop(['DATE','BIST100'], axis=1)
+rr_stocks = rr_stocks.apply(
+    lambda x: pd.Series({'Return': x.mean() * 252, 'Risk': x.std() * np.sqrt(252)})
+).transpose()
+rr_stocks['Ratio'] = rr_stocks['Return'] / rr_stocks['Risk']
+rr_stocks = sorted(list(rr_stocks.sort_values('Ratio', ascending=False).index)[:8])
+rr_stocks
+
+```
+
+* Which portfolio has the best returns?
+
+```{python}
+
+df1 = bist50stocks_2022[
+    bist50stocks_2022.columns[
+        bist50stocks_2022.columns.isin(rnd_stocks)
+    ]
+]
+df1['DATE'] = bist50stocks['DATE']
+df1['Return_Random'] = 1 + df1.mean(axis=1,numeric_only=True)
+df1 = df1[['DATE','Return_Random']]
+
+df2 = bist50stocks_2022[
+    bist50stocks_2022.columns[
+        bist50stocks_2022.columns.isin(rr_stocks)
+    ]
+]
+df2['DATE'] = bist50stocks['DATE']
+df2['Return_RR_Ratio'] = 1 + df2.mean(axis=1,numeric_only=True)
+df2 = df2[['DATE','Return_RR_Ratio']]
+
+df3 = bist50stocks_2022[['DATE','BIST100']]
+df3 = df3.rename(columns = {'BIST100':'Return_Benchmark'})
+df3['Return_Benchmark'] = 1 + df3['Return_Benchmark']
+
+df_final = pd.merge(
+    pd.merge(df1, df2, on='DATE'), df3, on='DATE'
+)
+df_final[['PL_Random','PL_RR_Ratio','PL_Benchmark']] = np.nan
+
+for i in range(len(df_final)):
+
+    for j in range(3):
+
+        if i == 0:
+
+            df_final.iloc[i,(j+4)] = 100 * df_final.iloc[i,(j+1)]
+
+        else:
+
+            df_final.iloc[i,(j+4)] = df_final.iloc[(i-1),(j+4)] * df_final.iloc[i,(j+1)]
+
+```
+
+```{python}
+
+df_final = pd.melt(
+    df_final,
+    id_vars = 'DATE',
+    value_vars = ['PL_Random','PL_RR_Ratio','PL_Benchmark']
+)
+
+```
+
+```{python}
+
+fig, ax = plt.subplots(figsize=(12,8))
+
+g = sns.lineplot(
+    x = 'DATE',
+    y = 'value',
+    hue = 'variable',
+    data = df_final
+)
+g.legend_.set_title(None)
+g.set(xlabel=None)
+g.set(ylabel=None)
+fig.autofmt_xdate(rotation = 0)
+
+plt.show()
+
+```
